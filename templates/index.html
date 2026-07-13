@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Session Web - Session Manager</title>
+    <style>
+        {{ style_css|safe }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 AI Session Web</h1>
+            <p>管理本地 CLI 会话记录（Jcode / Codex / Continue）
+                <a href="/config" style="margin-left: 16px; color: #4a6cf7; text-decoration: none; font-size: 0.9rem;">⚙️ 配置信息</a>
+            </p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <div>扫描会话文件...</div>
+        </div>
+
+        <div id="sessions-container">
+            <!-- Dynamically rendered -->
+        </div>
+    </div>
+
+    <!-- JSON View Modal -->
+    <div id="json-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 id="json-modal-title">📄 Session JSON</h3>
+            <div id="json-modal-content"></div>
+            <div id="json-modal-actions" class="modal-actions">
+                <button class="btn btn-close" onclick="closeModal('json-modal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 450px;">
+            <h3>⚠️ 确认删除</h3>
+            <div class="confirm-text" id="confirm-text"></div>
+            <div class="confirm-detail" id="confirm-detail"></div>
+            <div class="confirm-actions">
+                <button class="btn btn-close" onclick="closeModal('confirm-modal')">取消</button>
+                <button class="btn btn-delete" onclick="executeDelete()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        {{ app_js|safe }}
+    </script>
+</body>
+</html>

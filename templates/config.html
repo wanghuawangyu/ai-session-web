@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Session Web - 配置信息</title>
+    <style>
+        {{ style_css|safe }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ AI Session Web — 配置信息</h1>
+            <p>
+                <a href="/" style="color: #4a6cf7; text-decoration: none;">← 返回会话列表</a>
+            </p>
+        </div>
+
+        <div class="source-group" style="padding: 20px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 14px 12px; font-weight: 600; color: #475569; width: 200px;">监听端口</td>
+                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace;">{{ port }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">监听地址</td>
+                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace;">{{ host }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">Jcode 会话目录</td>
+                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace; word-break: break-all;">{{ jcode_dir }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">Codex 会话目录</td>
+                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace; word-break: break-all;">{{ codex_dir }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">Continue 会话目录</td>
+                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace; word-break: break-all;">{{ continue_dir }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #edf2f7;">
+                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">日志级别</td>
+                    <td style="padding: 14px 12px;"><span class="meta-tag provider">{{ log_level }}</span></td>
+                </tr>
+                <tr>
+                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">日志文件</td>
+                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace; word-break: break-all;">{{ log_path }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="margin-top: 16px; font-size: 0.85rem; color: #94a3b8; text-align: center;">
+            配置优先级：命令行参数 &gt; 程序默认值
+        </div>
+    </div>
+</body>
+</html>
