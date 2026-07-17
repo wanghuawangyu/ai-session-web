@@ -40,6 +40,8 @@ pub fn parse_continue(path: &Path) -> Result<SessionMeta> {
 
     // Continue: 单个文件，无额外关联文件
     let associated = vec![path.to_path_buf()];
+    // Continue 无内容时间字段，直接用文件 mtime
+    let effective_updated_at = super::compute_effective_updated_at("", &[path]);
 
     Ok(SessionMeta {
         source: SessionSource::Continue,
@@ -50,11 +52,13 @@ pub fn parse_continue(path: &Path) -> Result<SessionMeta> {
         user_messages: user_count,
         ai_messages: ai_count,
         created_at: String::new(),
-        updated_at: String::new(), // Continue 无创建时间字段
+        updated_at: String::new(), // Continue 无创建/更新时间字段
         working_dir: wd,
         provider: "continue".to_string(),
         file_path: path.to_path_buf(),
         associated_files: associated,
+        has_custom_title: false,
+        effective_updated_at,
     })
 }
 

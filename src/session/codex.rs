@@ -64,6 +64,10 @@ pub fn parse_codex(path: &Path) -> Result<SessionMeta> {
     // Codex: 单个文件，无额外关联文件
     let associated = vec![path.to_path_buf()];
 
+    // content_updated 取 created_at（Codex 无独立 updated_at 字段）
+    let content_updated = created_at.clone();
+    let effective_updated_at = super::compute_effective_updated_at(&content_updated, &[path]);
+
     Ok(SessionMeta {
         source: SessionSource::Codex,
         session_id,
@@ -78,6 +82,8 @@ pub fn parse_codex(path: &Path) -> Result<SessionMeta> {
         provider: if provider.is_empty() { "codex".to_string() } else { provider },
         file_path: path.to_path_buf(),
         associated_files: associated,
+        has_custom_title: false,
+        effective_updated_at,
     })
 }
 

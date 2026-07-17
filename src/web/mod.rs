@@ -3,6 +3,7 @@ use axum::{extract::State, response::{Html, IntoResponse, Response}};
 use std::sync::Arc;
 
 use crate::api::AppState;
+use crate::config::CliDirDisplay;
 use crate::error::AppError;
 
 const STYLE_CSS: &str = include_str!("assets/style.css");
@@ -17,9 +18,7 @@ struct IndexTemplate;
 struct ConfigTemplate {
     port: u16,
     host: String,
-    jcode_dir: String,
-    codex_dir: String,
-    continue_dir: String,
+    cli_dirs: Vec<CliDirDisplay>,
     log_path: String,
     log_level: String,
 }
@@ -42,9 +41,7 @@ pub async fn config_handler(
     let tmpl = ConfigTemplate {
         port: cfg.port,
         host: cfg.host.clone(),
-        jcode_dir: cfg.jcode_dir.clone(),
-        codex_dir: cfg.codex_dir.clone(),
-        continue_dir: cfg.continue_dir.clone(),
+        cli_dirs: cfg.cli_dirs.clone(),
         log_path,
         log_level: cfg.log_level.clone(),
     };

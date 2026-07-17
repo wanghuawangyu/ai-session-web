@@ -240,6 +240,34 @@ body {
 .session-header .session-project { flex: 2; min-width: 180px; }
 .session-header .session-actions { flex: 0 0 auto; }
 
+/* Section headers (within a source group) */
+.section-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+    gap: 8px;
+}
+.section-header h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #334155;
+}
+.section-count {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-left: auto;
+}
+
+/* Broken sessions */
+.broken-item {
+    opacity: 0.7;
+}
+.broken-item:hover {
+    opacity: 1;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .session-item { flex-direction: column; align-items: stretch; }

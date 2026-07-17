@@ -8,7 +8,7 @@ mod error;
 mod session;
 mod web;
 
-use config::{AppConfig, ConfigDisplay, ConfigLoader, Cli};
+use config::{AppConfig, CliDirDisplay, ConfigDisplay, ConfigLoader, Cli};
 use error::Result;
 use session::registry::SessionRegistry;
 use api::create_router;
@@ -67,9 +67,9 @@ async fn main() -> Result<()> {
     println!("═══════════════════════════════════════════");
     println!("  监听端口  │ {}", final_config.port.unwrap_or(8100));
     println!("  监听地址  │ {}", final_config.host.as_deref().unwrap_or("127.0.0.1"));
-    println!("  Jcode 目录 │ {}", final_config.jcode_dir.as_deref().map(|p| p.display().to_string()).unwrap_or_else(|| "(未设置)".to_string()));
-    println!("  Codex 目录 │ {}", final_config.codex_dir.as_deref().map(|p| p.display().to_string()).unwrap_or_else(|| "(未设置)".to_string()));
-    println!("  Continue 目录│ {}", final_config.continue_dir.as_deref().map(|p| p.display().to_string()).unwrap_or_else(|| "(未设置)".to_string()));
+    for cli_dir in &final_config.cli_dirs {
+        println!("  {:<8} │ {}", format!("{} 目录", cli_dir.cli_type), cli_dir.path.display());
+    }
     let log_display = log_path.unwrap_or("");
     if log_display.is_empty() {
         println!("  日志文件  │ （仅控制台输出）");
@@ -81,20 +81,19 @@ async fn main() -> Result<()> {
 
     // ---- 4. 扫描会话 ----
     info!("Scanning session directories...");
-    let registry = SessionRegistry::scan(
-        final_config.jcode_dir.as_ref(),
-        final_config.codex_dir.as_ref(),
-        final_config.continue_dir.as_ref(),
-    )?;
+    let registry = SessionRegistry::scan(&final_config.cli_dirs)?;
     info!("Found {} sessions total", registry.list_all().len());
 
     // ---- 5. 构建配置展示信息 ----
     let display_config = ConfigDisplay {
         port: final_config.port.unwrap_or(8100),
         host: final_config.host.clone().unwrap_or_else(|| "127.0.0.1".to_string()),
-        jcode_dir: final_config.jcode_dir.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "（未设置）".to_string()),
-        codex_dir: final_config.codex_dir.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "（未设置）".to_string()),
-        continue_dir: final_config.continue_dir.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "（未设置）".to_string()),
+        cli_dirs: final_config.cli_dirs.iter().map(|d| {
+            CliDirDisplay {
+                label: d.cli_type.to_string(),
+                path: d.path.display().to_string(),
+            }
+        }).collect(),
         log_path: final_config.log.clone().filter(|s| !s.is_empty()),
         log_level: log_level.to_string(),
     };

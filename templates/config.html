@@ -25,18 +25,12 @@
                     <td style="padding: 14px 12px; font-weight: 600; color: #475569;">监听地址</td>
                     <td style="padding: 14px 12px; font-family: 'SF Mono', monospace;">{{ host }}</td>
                 </tr>
+                {% for dir in cli_dirs %}
                 <tr style="border-bottom: 1px solid #edf2f7;">
-                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">Jcode 会话目录</td>
-                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace; word-break: break-all;">{{ jcode_dir }}</td>
+                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">{{ dir.label }} 会话目录</td>
+                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace; word-break: break-all;">{{ dir.path }}</td>
                 </tr>
-                <tr style="border-bottom: 1px solid #edf2f7;">
-                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">Codex 会话目录</td>
-                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace; word-break: break-all;">{{ codex_dir }}</td>
-                </tr>
-                <tr style="border-bottom: 1px solid #edf2f7;">
-                    <td style="padding: 14px 12px; font-weight: 600; color: #475569;">Continue 会话目录</td>
-                    <td style="padding: 14px 12px; font-family: 'SF Mono', monospace; word-break: break-all;">{{ continue_dir }}</td>
-                </tr>
+                {% endfor %}
                 <tr style="border-bottom: 1px solid #edf2f7;">
                     <td style="padding: 14px 12px; font-weight: 600; color: #475569;">日志级别</td>
                     <td style="padding: 14px 12px;"><span class="meta-tag provider">{{ log_level }}</span></td>
