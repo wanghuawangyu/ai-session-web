@@ -49,7 +49,8 @@ pub fn parse_continue(path: &Path) -> Result<SessionMeta> {
         total_messages: history,
         user_messages: user_count,
         ai_messages: ai_count,
-        created_at: String::new(), // Continue 无创建时间字段
+        created_at: String::new(),
+        updated_at: String::new(), // Continue 无创建时间字段
         working_dir: wd,
         provider: "continue".to_string(),
         file_path: path.to_path_buf(),

@@ -19,8 +19,10 @@ async function fetchSessionJson(source, sessionId) {
     return await resp.json();
 }
 
-// --- UI State ---
-let modalCallback = null;
+// --- SVG Icons (inline, no emoji) ---
+var ICON_USER = '\u{1F464}';   // 👤
+var ICON_AI = '\u{1F916}';    // 🤖
+var ICON_CHAT = '\u{1F4AC}';  // 💬
 
 // --- Render ---
 function showLoading(show) {
@@ -28,19 +30,19 @@ function showLoading(show) {
 }
 
 function getSourceBadge(source) {
-    const labels = { jcode: 'Jcode', codex: 'Codex', continue: 'Continue' };
-    return `<span class="source-badge ${source}">${labels[source] || source}</span>`;
+    var labels = { jcode: 'Jcode', codex: 'Codex', 'continue': 'Continue' };
+    return '<span class="source-badge ' + source + '">' + (labels[source] || source) + '</span>';
 }
 
 function getSourceIcon(source) {
-    const icons = { jcode: '⚡', codex: '🔷', continue: '▶' };
-    return icons[source] || '📋';
+    var icons = { jcode: '&#9889;', codex: '&#128311;', 'continue': '&#9654;' };
+    return icons[source] || '&#128211;';
 }
 
 function formatDate(dateStr) {
     if (!dateStr) return '-';
     try {
-        const d = new Date(dateStr);
+        var d = new Date(dateStr);
         if (isNaN(d.getTime())) return dateStr.substring(0, 19);
         return d.toLocaleString('zh-CN', {
             year: 'numeric', month: '2-digit', day: '2-digit',
@@ -56,13 +58,53 @@ function truncate(str, len) {
     return str.substring(0, len) + '…';
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Build session rows and attach event listeners via DOM (no innerHTML onclick)
+function buildSessionRows(group) {
+    var source = group.source;
+    var sessions = group.sessions;
+    var html = '';
+
+    sessions.forEach(function(s) {
+        var displayName = s.name || s.session_id;
+
+        html += '<div class="session-item" data-source="' + source + '" data-id="' + escapeHtml(s.session_id) + '">'
+            // Column 1: Name / session_id / msgs
+            + '<div class="session-info">'
+            + '<div class="session-name">' + escapeHtml(displayName) + '</div>'
+            + '<div class="session-sessionid">' + escapeHtml(s.session_id) + '</div>'
+            + '<div class="session-msgs">'
+            + '<span class="msgs-count">' + ICON_USER + ' ' + s.user_messages + ' <span class="msgs-sep">/</span> ' + ICON_AI + ' ' + s.ai_messages + ' <span class="msgs-sep">/</span> ' + ICON_CHAT + ' ' + s.total_messages + '</span>'
+            + ' <span class="msgs-provider">' + escapeHtml(s.provider) + '</span>'
+            + '</div></div>'
+            // Column 2: Project (work-dir / created_at + updated_at)
+            + '<div class="session-project">'
+            + '<div class="project-dir">' + escapeHtml(s.working_dir) + '</div>'
+            + '<div class="project-times">'
+            + '<div class="time-row"><span class="time-icon">🕐</span><span class="time-value">' + formatDate(s.created_at) + '</span></div>'
+            + '<div class="time-row"><span class="time-icon">✏️</span><span class="time-value">' + formatDate(s.updated_at) + '</span></div>'
+            + '</div></div>'
+            // Column 3: Actions
+            + '<div class="session-actions">'
+            + '<button class="btn btn-view">&#128065; 查看</button>'
+            + '<button class="btn btn-delete">&#128465; 删除</button>'
+            + '</div></div>';
+    });
+
+    return html;
+}
+
 async function refreshList() {
-    const container = document.getElementById('sessions-container');
+    var container = document.getElementById('sessions-container');
     showLoading(true);
     container.innerHTML = '';
 
     try {
-        const groups = await fetchSessions();
+        var groups = await fetchSessions();
         showLoading(false);
 
         if (!groups || groups.length === 0) {
@@ -70,111 +112,98 @@ async function refreshList() {
             return;
         }
 
-        let html = '';
-        for (const group of groups) {
-            const source = group.source;
-            const sessions = group.sessions;
+        var html = '';
+        for (var i = 0; i < groups.length; i++) {
+            var group = groups[i];
+            var source = group.source;
+            var sessions = group.sessions;
 
-            html += `
-                <div class="source-group">
-                    <div class="source-header">
-                        <span style="font-size:1.4rem;">${getSourceIcon(source)}</span>
-                        <h2>${source.charAt(0).toUpperCase() + source.slice(1)} Sessions</h2>
-                        ${getSourceBadge(source)}
-                        <span style="font-size:0.85rem;color:#94a3b8;margin-left:auto;">${sessions.length} sessions</span>
-                    </div>
-                    <div class="session-table">
-                        <div class="session-header">
-                            <div class="session-info">Name / Title</div>
-                            <div class="session-path">File</div>
-                            <div class="session-actions">Actions</div>
-                        </div>
-            `;
-
-            sessions.forEach(s => {
-                const safeSource = JSON.stringify(source);
-                const safeId = JSON.stringify(s.session_id);
-                const displayName = s.name || s.session_id;
-                const titleText = s.title || '-';
-
-                html += `
-                    <div class="session-item">
-                        <div class="session-info">
-                            <div class="session-name">${escapeHtml(displayName)}</div>
-                            <div class="session-title">${escapeHtml(truncate(titleText, 60))}</div>
-                            <div class="session-meta">
-                                <span class="meta-tag messages">${s.total_messages} msgs</span>
-                                <span class="meta-tag provider">${escapeHtml(s.provider)}</span>
-                                <span class="meta-tag wd" title="${escapeHtml(s.working_dir)}">📁 ${escapeHtml(truncate(s.working_dir, 40))}</span>
-                                <span class="meta-tag">🕐 ${formatDate(s.created_at)}</span>
-                            </div>
-                        </div>
-                        <div class="session-path">${escapeHtml(s.session_id)}</div>
-                        <div class="session-actions">
-                            <button class="btn btn-view" onclick="viewSession(${safeSource}, ${safeId})">查看</button>
-                            <button class="btn btn-delete" onclick="confirmDelete(${safeSource}, ${safeId})">删除</button>
-                        </div>
-                    </div>
-                `;
-            });
-
-            html += `
-                    </div>
-                </div>
-            `;
+            html += '<div class="source-group" data-source="' + source + '">'
+                + '<div class="source-header">'
+                + '<span style="font-size:1.4rem;">' + getSourceIcon(source) + '</span>'
+                + '<h2>' + source.charAt(0).toUpperCase() + source.slice(1) + ' Sessions</h2>'
+                + getSourceBadge(source)
+                + '<span style="font-size:0.85rem;color:#94a3b8;margin-left:auto;">' + sessions.length + ' sessions</span>'
+                + '</div>'
+                + '<div class="session-table">'
+                + '<div class="session-header">'
+                + '<div class="session-info">Name / Session ID / Messages</div>'
+                + '<div class="session-project">Project</div>'
+                + '<div class="session-actions">Actions</div>'
+                + '</div>'
+                + buildSessionRows(group)
+                + '</div></div>';
         }
 
         container.innerHTML = html;
+
+        // Attach event listeners via delegation on the container
+        attachEventListeners(container);
+
     } catch (err) {
         showLoading(false);
-        container.innerHTML = `<div class="alert" style="background:#fee2e2;color:#b91c1c;">Error: ${err.message}</div>`;
+        container.innerHTML = '<div class="alert" style="background:#fee2e2;color:#b91c1c;">Error: ' + escapeHtml(err.message) + '</div>';
     }
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// --- Event delegation: no onclick= in generated HTML ---
+function attachEventListeners(container) {
+    container.addEventListener('click', function(e) {
+        var target = e.target;
+        var item = target.closest('.session-item');
+        if (!item) return;
+
+        var source = item.getAttribute('data-source');
+        var sessionId = item.getAttribute('data-id');
+
+        if (target.classList.contains('btn-view')) {
+            e.preventDefault();
+            viewSession(source, sessionId);
+        } else if (target.classList.contains('btn-delete')) {
+            e.preventDefault();
+            confirmDelete(source, sessionId);
+        }
+    });
 }
 
 // --- View Session JSON ---
 async function viewSession(source, sessionId) {
-    const overlay = document.getElementById('json-modal');
-    const title = document.getElementById('json-modal-title');
-    const content = document.getElementById('json-modal-content');
-    const actions = document.getElementById('json-modal-actions');
+    var overlay = document.getElementById('json-modal');
+    var title = document.getElementById('json-modal-title');
+    var content = document.getElementById('json-modal-content');
 
-    title.textContent = `📄 ${sessionId}.json`;
-    content.innerHTML = '<div class="loading" style="padding:20px;"><div class="spinner"></div></div>';
-    actions.innerHTML = '<button class="btn btn-close" onclick="closeModal(\'json-modal\')">关闭</button>';
+    title.textContent = sessionId + '.json';
+    content.innerHTML = '<div class="loading" style="padding:20px;"><div class="spinner"></div><div>加载中...</div></div>';
     overlay.classList.add('active');
 
     try {
-        const jsonData = await fetchSessionJson(source, sessionId);
-        const formatted = JSON.stringify(jsonData, null, 2);
-        content.innerHTML = `<pre class="json-preview">${escapeHtml(formatted)}</pre>`;
+        var jsonData = await fetchSessionJson(source, sessionId);
+        var formatted = JSON.stringify(jsonData, null, 2);
+        content.innerHTML = '<pre class="json-preview">' + escapeHtml(formatted) + '</pre>';
     } catch (err) {
-        content.innerHTML = `<div class="alert" style="background:#fee2e2;color:#b91c1c;">Error: ${err.message}</div>`;
+        content.innerHTML = '<div class="alert" style="background:#fee2e2;color:#b91c1c;">Error: ' + escapeHtml(err.message) + '</div>';
     }
 }
 
 // --- Delete Confirmation ---
-let pendingDelete = null;
+var pendingDelete = null;
 
 function confirmDelete(source, sessionId) {
-    const overlay = document.getElementById('confirm-modal');
-    const text = document.getElementById('confirm-text');
-    const detail = document.getElementById('confirm-detail');
+    var overlay = document.getElementById('confirm-modal');
+    var text = document.getElementById('confirm-text');
+    var detail = document.getElementById('confirm-detail');
 
-    text.textContent = `确认删除会话 "${sessionId}"？`;
-    detail.textContent = `来源: ${source}。此操作将删除该会话的所有关联文件（.json、.bak、.journal.jsonl 等），不可恢复。`;
+    text.textContent = sessionId;
+    detail.textContent = '来源: ' + source + '。此操作将删除该会话的所有关联文件（.json、.bak、.journal.jsonl 等），不可恢复。';
     overlay.classList.add('active');
 
-    pendingDelete = { source, sessionId };
+    pendingDelete = { source: source, sessionId: sessionId };
 }
 
 async function executeDelete() {
     if (!pendingDelete) return;
-    const { source, sessionId } = pendingDelete;
+    var source = pendingDelete.source;
+    var sessionId = pendingDelete.sessionId;
     pendingDelete = null;
 
     try {
@@ -204,14 +233,15 @@ document.addEventListener('click', function(e) {
 // Keyboard shortcut: Escape to close modal
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        document.querySelectorAll('.modal-overlay.active').forEach(el => {
-            el.classList.remove('active');
-            if (el.id === 'confirm-modal') pendingDelete = null;
-        });
+        var modals = document.querySelectorAll('.modal-overlay.active');
+        for (var i = 0; i < modals.length; i++) {
+            modals[i].classList.remove('active');
+        }
+        pendingDelete = null;
     }
 });
 
 // --- Initialization ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     refreshList();
 });

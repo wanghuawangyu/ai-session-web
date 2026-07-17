@@ -1,23 +1,20 @@
 use askama::Template;
-use axum::{extract::State, response::Html};
+use axum::{extract::State, response::{Html, IntoResponse, Response}};
 use std::sync::Arc;
 
 use crate::api::AppState;
 use crate::error::AppError;
 
 const STYLE_CSS: &str = include_str!("assets/style.css");
+const APP_JS: &str = include_str!("assets/app.js");
 
 #[derive(Template)]
 #[template(path = "index.html")]
-struct IndexTemplate {
-    style_css: &'static str,
-    app_js: &'static str,
-}
+struct IndexTemplate;
 
 #[derive(Template)]
 #[template(path = "config.html")]
 struct ConfigTemplate {
-    style_css: &'static str,
     port: u16,
     host: String,
     jcode_dir: String,
@@ -30,10 +27,7 @@ struct ConfigTemplate {
 pub async fn index_handler(
     State(_state): State<Arc<AppState>>,
 ) -> std::result::Result<Html<String>, AppError> {
-    let tmpl = IndexTemplate {
-        style_css: STYLE_CSS,
-        app_js: include_str!("assets/app.js"),
-    };
+    let tmpl = IndexTemplate {};
     let rendered = tmpl.render().map_err(|e| AppError::Config(e.to_string()))?;
     Ok(Html(rendered))
 }
@@ -46,7 +40,6 @@ pub async fn config_handler(
     let log_path = cfg.log_path.clone().unwrap_or_else(|| "（未设置，输出到控制台）".to_string());
 
     let tmpl = ConfigTemplate {
-        style_css: STYLE_CSS,
         port: cfg.port,
         host: cfg.host.clone(),
         jcode_dir: cfg.jcode_dir.clone(),
@@ -57,4 +50,22 @@ pub async fn config_handler(
     };
     let rendered = tmpl.render().map_err(|e| AppError::Config(e.to_string()))?;
     Ok(Html(rendered))
+}
+
+/// Serve compiled-in CSS as a static file
+pub async fn style_handler() -> Response {
+    (
+        [("content-type", "text/css; charset=utf-8")],
+        STYLE_CSS,
+    )
+        .into_response()
+}
+
+/// Serve compiled-in JS as a static file
+pub async fn script_handler() -> Response {
+    (
+        [("content-type", "application/javascript; charset=utf-8")],
+        APP_JS,
+    )
+        .into_response()
 }

@@ -47,6 +47,7 @@ pub struct SessionMeta {
     pub user_messages: usize,
     pub ai_messages: usize,
     pub created_at: String,
+    pub updated_at: String,
     pub working_dir: String,
     pub provider: String,
     /// 对应磁盘上的完整文件路径

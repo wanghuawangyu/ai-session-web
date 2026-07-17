@@ -26,6 +26,7 @@ pub fn parse_jcode(path: &Path) -> Result<SessionMeta> {
         .unwrap_or("")
         .to_string();
     let created = data.get("created_at").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let updated = data.get("updated_at").and_then(|v| v.as_str()).unwrap_or(&created).to_string();
     let wd = data.get("working_dir").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let provider = data.get("provider_key").and_then(|v| v.as_str()).unwrap_or("jcode").to_string();
 
@@ -56,6 +57,7 @@ pub fn parse_jcode(path: &Path) -> Result<SessionMeta> {
         user_messages: user,
         ai_messages: ai,
         created_at: created,
+        updated_at: updated,
         working_dir: wd,
         provider,
         file_path: path.to_path_buf(),

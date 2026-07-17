@@ -50,7 +50,7 @@ body {
 .session-item {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-start;
     padding: 14px 20px;
     border-bottom: 1px solid #edf2f7;
     gap: 10px;
@@ -58,36 +58,78 @@ body {
 .session-item:last-child { border-bottom: none; }
 .session-item:hover { background: #fafbfc; }
 
-.session-info { flex: 2; min-width: 200px; word-break: break-all; }
+.session-info { flex: 2.5; min-width: 240px; word-break: break-all; }
 .session-name { font-weight: 600; font-size: 1rem; word-break: break-all; }
-.session-title { font-size: 0.85rem; color: #64748b; margin-top: 2px; word-break: break-all; }
+.session-sessionid { font-size: 0.78rem; color: #94a3b8; margin-top: 1px; font-family: "SF Mono", "Cascadia Code", monospace; word-break: break-all; }
 
-.session-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 4px;
+.session-msgs {
+    margin-top: 3px;
 }
-.meta-tag {
+.msgs-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.78rem;
+    color: #475569;
+    font-variant-numeric: tabular-nums;
+}
+.msgs-icon {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+.msgs-sep {
+    color: #cbd5e1;
+    margin: 0 2px;
+    font-size: 0.75rem;
+}
+.msgs-provider {
     display: inline-block;
     padding: 2px 10px;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 500;
-    background: #f1f5f9;
-    color: #475569;
+    background: #ede9fe;
+    color: #6d28d9;
+    margin-left: 4px;
 }
-.meta-tag.provider { background: #ede9fe; color: #6d28d9; }
-.meta-tag.messages { background: #fef3c7; color: #92400e; }
-.meta-tag.wd { background: #e9ecf0; color: #3d4a5a; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.session-path {
-    font-size: 0.78rem;
-    color: #94a3b8;
+.session-project {
+    font-size: 0.82rem;
     word-break: break-all;
+    flex: 2;
+    min-width: 180px;
+}
+.session-project .project-dir {
     font-family: "SF Mono", "Cascadia Code", monospace;
-    flex: 1.5;
-    min-width: 120px;
+    color: #475569;
+    word-break: break-all;
+    line-height: 1.4;
+}
+.session-project .project-times {
+    margin-top: 4px;
+    font-size: 0.78rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.time-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.time-icon {
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+.time-label {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+.time-value {
+    color: #64748b;
+    font-family: "SF Mono", "Cascadia Code", monospace;
+    font-size: 0.78rem;
 }
 .session-actions {
     display: flex;
@@ -194,6 +236,9 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
+.session-header .session-info { flex: 2.5; min-width: 240px; }
+.session-header .session-project { flex: 2; min-width: 180px; }
+.session-header .session-actions { flex: 0 0 auto; }
 
 /* Responsive */
 @media (max-width: 768px) {

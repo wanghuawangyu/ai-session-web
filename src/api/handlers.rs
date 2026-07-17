@@ -24,6 +24,7 @@ pub struct SessionEntry {
     pub user_messages: usize,
     pub ai_messages: usize,
     pub created_at: String,
+    pub updated_at: String,
     pub working_dir: String,
     pub provider: String,
 }
@@ -38,6 +39,7 @@ impl From<&crate::session::SessionMeta> for SessionEntry {
             user_messages: meta.user_messages,
             ai_messages: meta.ai_messages,
             created_at: meta.created_at.clone(),
+            updated_at: meta.updated_at.clone(),
             working_dir: meta.working_dir.clone(),
             provider: meta.provider.clone(),
         }
