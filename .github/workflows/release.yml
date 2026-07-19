@@ -3,10 +3,10 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'   # 推送 v 开头的 tag 时触发
+      - 'v*.*.*'
 
 permissions:
-  contents: write    # 允许写入 Release 资源
+  contents: write
 
 jobs:
   create-release:
@@ -14,9 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Generate release body from CHANGELOG
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          awk -v ver="$TAG" '
+            /^## / {
+              if (found) exit
+              if ($0 ~ "v" ver || $0 ~ ver) found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md > release_body.md
+          echo "release_body.md: $(wc -c < release_body.md) bytes"
+
       - name: Create GitHub Release
         uses: taiki-e/create-gh-release-action@v1
         with:
+          body_path: release_body.md
           token: ${{ secrets.GITHUB_TOKEN }}
 
   upload-assets:
@@ -25,13 +39,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux x86_64 (musl 静态链接)
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-          # Linux ARM64 (musl 静态链接，在 x86_64 上交叉编译)
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
-          # Windows x86_64 (gnu)
           - target: x86_64-pc-windows-gnu
             os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -43,27 +54,58 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # Linux x86_64 musl: musl-tools 提供本地 musl-gcc
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
       - name: Install system deps — Linux x86_64 musl
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
-      # Linux ARM64 musl: 下载 musl.cc 交叉编译工具链
-      - name: Install system deps — Linux ARM64 musl
+      - name: Install system deps — Linux ARM64 musl (cross)
         if: matrix.target == 'aarch64-unknown-linux-musl'
         run: |
-          sudo apt-get update
-          curl -sL https://musl.cc/aarch64-linux-musl-cross.tgz | sudo tar xz -C /opt
-          echo "/opt/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
+          curl -sSL https://github.com/cross-rs/cross/releases/latest/download/cross-x86_64-unknown-linux-musl.tar.gz \
+            | sudo tar xz -C /usr/local/bin
 
-      - name: Build binary
+      - name: Run tests (host target)
+        run: cargo test
+
+      - name: Build binary (native)
+        if: matrix.target != 'aarch64-unknown-linux-musl'
         run: cargo build --release --target ${{ matrix.target }}
         env:
-          # ARM64 musl 交叉编译需要指定链接器
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
-          CC_aarch64_unknown_linux_musl: aarch64-linux-musl-gcc
+          RELEASE_VERSION: ${{ github.ref_name }}
 
-      - name: Upload to Release
+      - name: Build binary (ARM64 cross)
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: cross build --release --target ${{ matrix.target }}
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+
+      - name: Verify binary (native only)
+        if: matrix.target != 'aarch64-unknown-linux-musl'
+        shell: bash
+        run: |
+          BIN="./target/${{ matrix.target }}/release/ai-session-web"
+          [ "${{ runner.os }}" = "Windows" ] && BIN="${BIN}.exe"
+          "${BIN}" --version
+          "${BIN}" --help
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          RELEASE_DIR="target/${{ matrix.target }}/release"
+          cd "${RELEASE_DIR}"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            # certutil output format: SHA256 hash + filename
+            certutil -hashfile ai-session-web.exe SHA256 | \
+              awk 'NR==2{print $1"  ai-session-web.exe"}' > SHA256SUMS
+          else
+            sha256sum ai-session-web* > SHA256SUMS
+          fi
+          cat SHA256SUMS
+
+      - name: Upload release assets
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: ai-session-web
@@ -71,3 +113,12 @@ jobs:
           tar: all
           zip: windows
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload checksums to Release
+        shell: bash
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            "target/${{ matrix.target }}/release/SHA256SUMS" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

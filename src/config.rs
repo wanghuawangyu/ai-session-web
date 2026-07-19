@@ -96,7 +96,7 @@ fn infer_cli_type(path_str: &str) -> Option<SessionSource> {
 // ============================================================
 
 #[derive(Parser)]
-#[command(name = "ai-session-web")]
+#[command(name = "ai-session-web", version = env!("CARGO_PKG_VERSION"))]
 #[command(about = "Web UI for managing local CLI session files", long_about = None)]
 pub struct Cli {
     /// CLI 会话目录列表，多个用空格分隔。根据目录名中的关键字自动识别类型（jcode / codex / continue）

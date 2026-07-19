@@ -85,20 +85,20 @@ JSON API → 前端渲染
 
 每个会话的完整元数据，由各解析器填充：
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `source` | `SessionSource` | Jcode / Codex / Continue |
-| `session_id` | `String` | 文件名去掉扩展名 |
-| `title` | `String` | JSON 中的 `title` 字段 |
-| `name` | `String` | 显示名称（fallback: custom_title → short_name → name） |
-| `has_custom_title` | `bool` | 仅当 JSON 存在非空 `custom_title` 时为 true |
-| `total_messages` / `user_messages` / `ai_messages` | `usize` | 消息统计（Jcode 会合并 journal 消息） |
-| `created_at` / `updated_at` | `String` | 从内容字段读取 |
-| `effective_updated_at` | `String` | **排序用**：max(内容 updated_at, 所有关联文件 mtime)，ISO 8601 |
-| `working_dir` | `String` | 工作目录路径 |
-| `provider` | `String` | 模型提供商 |
-| `file_path` | `PathBuf` | 主数据文件路径 |
-| `associated_files` | `Vec<PathBuf>` | 删除时需要一并清除的关联文件 |
+| 字段                                               | 类型            | 说明                                                           |
+| -------------------------------------------------- | --------------- | -------------------------------------------------------------- |
+| `source`                                           | `SessionSource` | Jcode / Codex / Continue                                       |
+| `session_id`                                       | `String`        | 文件名去掉扩展名                                               |
+| `title`                                            | `String`        | JSON 中的 `title` 字段                                         |
+| `name`                                             | `String`        | 显示名称（fallback: custom_title → short_name → name）         |
+| `has_custom_title`                                 | `bool`          | 仅当 JSON 存在非空 `custom_title` 时为 true                    |
+| `total_messages` / `user_messages` / `ai_messages` | `usize`         | 消息统计（Jcode 会合并 journal 消息）                          |
+| `created_at` / `updated_at`                        | `String`        | 从内容字段读取                                                 |
+| `effective_updated_at`                             | `String`        | **排序用**：max(内容 updated_at, 所有关联文件 mtime)，ISO 8601 |
+| `working_dir`                                      | `String`        | 工作目录路径                                                   |
+| `provider`                                         | `String`        | 模型提供商                                                     |
+| `file_path`                                        | `PathBuf`       | 主数据文件路径                                                 |
+| `associated_files`                                 | `Vec<PathBuf>`  | 删除时需要一并清除的关联文件                                   |
 
 ### `CliDir`（`config.rs`）
 
@@ -216,12 +216,12 @@ refreshList()
 
 ### 交互功能
 
-| 功能 | 实现 |
-|---|---|
-| **查看 JSON** | 请求 `/api/sessions/{source}/{id}/json`，弹出模态框显示格式化 JSON |
-| **删除会话** | 两步确认：主会话需二次确认（红字警告 "此操作不可恢复"） |
-| **关闭模态框** | 点击 overlay / Escape 键 |
-| **时间显示** | ISO 8601 → `toLocaleString('zh-CN')` 格式化 |
+| 功能           | 实现                                                               |
+| -------------- | ------------------------------------------------------------------ |
+| **查看 JSON**  | 请求 `/api/sessions/{source}/{id}/json`，弹出模态框显示格式化 JSON |
+| **删除会话**   | 两步确认：主会话需二次确认（红字警告 "此操作不可恢复"）            |
+| **关闭模态框** | 点击 overlay / Escape 键                                           |
+| **时间显示**   | ISO 8601 → `toLocaleString('zh-CN')` 格式化                        |
 
 ### 样式要点
 
@@ -321,14 +321,14 @@ ConfigLoader::load(cli_config, defaults)
 
 16 个单元测试覆盖：
 
-| 模块 | 测试 | 验证点 |
-|---|---|---|
-| `config` | CLI 解析（空格/逗号）、类型推断、默认值 | 3 tests |
-| `jcode` | 纯 json、json+journal 合并、bak 文件关联 | 3 tests |
-| `codex` | 标准解析、容忍无效行 | 2 tests |
-| `continue_` | 标准解析 | 1 test |
-| `jcode_journal` | 空文件、消息解析、无效行跳过 | 3 tests |
-| `registry` | 多目录扫描、排序输出结构、目录扫描删除 | 3 tests |
+| 模块            | 测试                                     | 验证点  |
+| --------------- | ---------------------------------------- | ------- |
+| `config`        | CLI 解析（空格/逗号）、类型推断、默认值  | 3 tests |
+| `jcode`         | 纯 json、json+journal 合并、bak 文件关联 | 3 tests |
+| `codex`         | 标准解析、容忍无效行                     | 2 tests |
+| `continue_`     | 标准解析                                 | 1 test  |
+| `jcode_journal` | 空文件、消息解析、无效行跳过             | 3 tests |
+| `registry`      | 多目录扫描、排序输出结构、目录扫描删除   | 3 tests |
 
 ---
 
@@ -350,3 +350,105 @@ cargo test
 # 发布构建
 cargo build --release
 ```
+
+---
+
+## 构建与发布
+
+### 构建要求
+
+| 工具       | 版本           | 说明                    |
+| ---------- | -------------- | ----------------------- |
+| Rust       | stable (≥1.78) | rustup 安装             |
+| musl-tools | latest         | Linux musl 静态链接需要 |
+| cross      | latest (可选)  | ARM64 交叉编译需要      |
+
+所有 Linux 构建必须使用 **musl 静态链接**，保证二进制在任何 Linux 发行版上可运行。
+
+### 版本号管理
+
+版本号来源优先级：
+
+1. **`RELEASE_VERSION` 环境变量**（最高优先级，用于 CI）
+2. **`Cargo.toml` 中的 `version`**（fallback）
+
+`build.rs` 在编译时检查 `RELEASE_VERSION` 环境变量，若存在则覆盖 `CARGO_PKG_VERSION`，使 `--version` 输出注入的版本号。
+
+```bash
+# CI 中：自动从 Git tag 注入
+RELEASE_VERSION=v0.2.0 cargo build --release
+
+# 结果输出
+./target/release/ai-session-web --version   # → ai-session-web 0.2.0
+```
+
+### 发布流程
+
+发布流程完全自动化，无需手动操作 Release 页面。
+
+```bash
+# 1. 确保 CHANGELOG.md 已更新
+# 编辑 CHANGELOG.md 添加新版本段落
+
+# 2. 提交并推送
+git add CHANGELOG.md
+git commit -m "chore: bump to v0.2.0"
+
+# 3. 打 tag 并推送
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+触发后 CI 自动完成构建、测试、上传到 Release 页面。
+
+### CI 工作流说明（`.github/workflows/release.yml`）
+
+两个 Job：
+
+**`create-release`** — 从 CHANGELOG.md 提取对应 Git tag 的版本段落，创建 GitHub Release。
+
+**`upload-assets`**（矩阵 × 3 target）— 每个 target 独立运行：
+
+| 步骤     | 操作                                                       |
+| -------- | ---------------------------------------------------------- |
+| 环境准备 | Rust toolchain + `Swatinem/rust-cache` 依赖缓存 + 系统依赖 |
+| 测试     | `cargo test` 在宿主 target 运行                            |
+| 构建     | `RELEASE_VERSION=$tag` 注入，ARM64 使用 `cross` 交叉编译   |
+| 验证     | 原生 target 执行 `--version` + `--help`                    |
+| 校验和   | 生成 SHA256SUMS 文件                                       |
+| 上传     | 二进制（tar.gz/zip）+ SHA256SUMS 一并上传到 Release        |
+
+### 构建产物
+
+| Target                     | 格式   | 下载文件                                           |
+| -------------------------- | ------ | -------------------------------------------------- |
+| x86_64-unknown-linux-musl  | tar.gz | `ai-session-web-x86_64-unknown-linux-musl.tar.gz`  |
+| aarch64-unknown-linux-musl | tar.gz | `ai-session-web-aarch64-unknown-linux-musl.tar.gz` |
+| x86_64-pc-windows-gnu      | zip    | `ai-session-web-x86_64-pc-windows-gnu.zip`         |
+
+每个 Release 还包含各平台的 `SHA256SUMS` 校验文件。
+
+### 本地构建
+
+```bash
+# 开发构建
+cargo build
+
+# 发布构建（默认版本号）
+cargo build --release
+
+# 发布构建（指定版本号）
+RELEASE_VERSION=v0.2.0 cargo build --release
+
+# 测试
+cargo test
+
+# 指定 target 构建（需先安装 target）
+rustup target add x86_64-unknown-linux-musl
+cargo build --release --target x86_64-unknown-linux-musl
+
+# ARM64 交叉编译（需要 cross）
+cross build --release --target aarch64-unknown-linux-musl
+```
+
+> **注意**：Windows 上构建 musl target 需要 [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) 或 WSL。推荐在 Linux CI 上完成所有 Linux 构建。
