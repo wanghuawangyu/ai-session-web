@@ -24,14 +24,6 @@ var ICON_USER = '\u{1F464}';   // 👤
 var ICON_AI = '\u{1F916}';    // 🤖
 var ICON_CHAT = '\u{1F4AC}';  // 💬
 
-// --- Section type labels ---
-var SECTION_LABELS = {
-    main: '主会话',
-    linked_temp: '临时会话（关联）',
-    unlinked_temp: '其他临时会话',
-    broken: '残缺会话'
-};
-
 // --- Render ---
 function showLoading(show) {
     document.getElementById('loading').style.display = show ? 'block' : 'none';
@@ -61,43 +53,45 @@ function formatDate(dateStr) {
     }
 }
 
-function truncate(str, len) {
-    if (!str || str.length <= len) return str || '-';
-    return str.substring(0, len) + '\u2026';
-}
-
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Build session rows for a normal session section
-function buildSessionRows(sessions, source) {
+// Build a single session row
+function buildSessionRow(s, source, extraClass) {
+    var displayName = s.name || s.session_id;
+    var mainAttr = s.has_custom_title ? ' data-main="true"' : '';
+    var cls = extraClass ? ' ' + extraClass : '';
+
+    return '<div class="session-item' + cls + '" data-source="' + source + '" data-id="' + escapeHtml(s.session_id) + '"' + mainAttr + '>'
+        // Column 1: Name / session_id / msgs
+        + '<div class="session-info">'
+        + '<div class="session-name">' + escapeHtml(displayName) + '</div>'
+        + '<div class="session-sessionid">' + escapeHtml(s.session_id) + '</div>'
+        + '<div class="session-msgs">'
+        + '<span class="msgs-count">' + ICON_USER + ' ' + s.user_messages + ' <span class="msgs-sep">/</span> ' + ICON_AI + ' ' + s.ai_messages + ' <span class="msgs-sep">/</span> ' + ICON_CHAT + ' ' + s.total_messages + '</span>'
+        + ' <span class="msgs-provider">' + escapeHtml(s.provider) + '</span>'
+        + '</div></div>'
+        // Column 2: Project (work-dir / times)
+        + '<div class="session-project">'
+        + '<div class="project-dir">' + escapeHtml(s.working_dir) + '</div>'
+        + '<div class="project-times">'
+        + '<div class="time-row"><span class="time-icon">\uD83D\uDD50</span><span class="time-value">' + formatDate(s.created_at) + '</span></div>'
+        + '<div class="time-row"><span class="time-icon">\uD83D\uDCDD</span><span class="time-value">' + formatDate(s.updated_at) + '</span></div>'
+        + '</div></div>'
+        // Column 3: Actions
+        + '<div class="session-actions">'
+        + '<button class="btn btn-view">&#128065; 查看</button>'
+        + '<button class="btn btn-delete">&#128465; 删除</button>'
+        + '</div></div>';
+}
+
+// Build multiple session rows
+function buildSessionRows(sessions, source, extraClass) {
     var html = '';
     sessions.forEach(function(s) {
-        var displayName = s.name || s.session_id;
-
-        html += '<div class="session-item" data-source="' + source + '" data-id="' + escapeHtml(s.session_id) + '">'
-            // Column 1: Name / session_id / msgs
-            + '<div class="session-info">'
-            + '<div class="session-name">' + escapeHtml(displayName) + '</div>'
-            + '<div class="session-sessionid">' + escapeHtml(s.session_id) + '</div>'
-            + '<div class="session-msgs">'
-            + '<span class="msgs-count">' + ICON_USER + ' ' + s.user_messages + ' <span class="msgs-sep">/</span> ' + ICON_AI + ' ' + s.ai_messages + ' <span class="msgs-sep">/</span> ' + ICON_CHAT + ' ' + s.total_messages + '</span>'
-            + ' <span class="msgs-provider">' + escapeHtml(s.provider) + '</span>'
-            + '</div></div>'
-            // Column 2: Project (work-dir / times)
-            + '<div class="session-project">'
-            + '<div class="project-dir">' + escapeHtml(s.working_dir) + '</div>'
-            + '<div class="project-times">'
-            + '<div class="time-row"><span class="time-icon">\uD83D\uDD50</span><span class="time-value">' + formatDate(s.created_at) + '</span></div>'
-            + '<div class="time-row"><span class="time-icon">\uD83D\uDCDD</span><span class="time-value">' + formatDate(s.updated_at) + '</span></div>'
-            + '</div></div>'
-            // Column 3: Actions
-            + '<div class="session-actions">'
-            + '<button class="btn btn-view">&#128065; 查看</button>'
-            + '<button class="btn btn-delete">&#128465; 删除</button>'
-            + '</div></div>';
+        html += buildSessionRow(s, source, extraClass || '');
     });
     return html;
 }
@@ -109,7 +103,7 @@ function buildBrokenRows(broken, source) {
         html += '<div class="session-item broken-item" data-source="' + source + '" data-id="' + escapeHtml(b.session_id) + '">'
             // Column 1: session_id (no name)
             + '<div class="session-info">'
-            + '<div class="session-name" style="color:#94a3b8;">' + escapeHtml(b.session_id) + '</div>'
+            + '<div class="session-name" style="color:#94a3b8;"><s>' + escapeHtml(b.session_id) + '</s></div>'
             + '<div class="session-sessionid" style="color:#cbd5e1;">' + escapeHtml(b.file_path) + '</div>'
             + '<div class="session-msgs" style="color:#cbd5e1;"><em>无法解析</em></div></div>'
             // Column 2: empty
@@ -117,23 +111,12 @@ function buildBrokenRows(broken, source) {
             + '<div class="project-times">'
             + '<div class="time-row"><span class="time-icon">\uD83D\uDCDD</span><span class="time-value">' + formatDate(b.effective_updated_at) + '</span></div>'
             + '</div></div>'
-            // Column 3: Delete only (no view)
+            // Column 3: Delete only
             + '<div class="session-actions">'
             + '<button class="btn btn-delete">&#128465; 删除</button>'
             + '</div></div>';
     });
     return html;
-}
-
-// Get section title HTML with optional parent info
-function getSectionHeader(section) {
-    var title = SECTION_LABELS[section.sectionType] || section.title || '会话';
-    var extra = '';
-    if (section.parentSessionName) {
-        extra = ' <span style="font-size:0.85rem;color:#64748b;font-weight:normal;">（关联: ' + escapeHtml(section.parentSessionName) + '）</span>';
-    }
-    var count = section.sessions.length + section.broken.length;
-    return '<div class="section-header"><h3>' + title + extra + '</h3><span class="section-count">' + count + ' 条</span></div>';
 }
 
 async function refreshList() {
@@ -162,34 +145,61 @@ async function refreshList() {
                 + '<h2>' + source.charAt(0).toUpperCase() + source.slice(1) + ' Sessions</h2>'
                 + getSourceBadge(source)
                 + '<span style="font-size:0.85rem;color:#94a3b8;margin-left:auto;">'
-                + sections.reduce(function(acc, s) { return acc + s.sessions.length + s.broken.length; }, 0)
+                + sections.reduce(function(acc, s) {
+                    var n = s.sessions.length + s.broken.length;
+                    if (s.mainSession) n += 1;
+                    return acc + n;
+                }, 0)
                 + ' sessions</span>'
                 + '</div>';
 
             // Render each section
             for (var si = 0; si < sections.length; si++) {
                 var section = sections[si];
-                html += '<div class="session-table">'
-                    + getSectionHeader(section);
 
-                // Column headers
-                html += '<div class="session-header">'
-                    + '<div class="session-info">名称 / Session ID / 消息</div>'
-                    + '<div class="session-project">项目</div>'
-                    + '<div class="session-actions">操作</div>'
-                    + '</div>';
+                if (section.sectionType === 'main_group') {
+                    // --- main_group: render main session as a prominent row, linked temps indented below ---
+                    html += '<div class="session-table main-group-table">';
 
-                // Normal sessions
-                if (section.sessions.length > 0) {
-                    html += buildSessionRows(section.sessions, source);
+                    // Main session row
+                    if (section.mainSession) {
+                        html += buildSessionRow(section.mainSession, source, 'main-group-leader');
+                    }
+
+                    // Column sub-header for linked temps
+                    if (section.sessions.length > 0) {
+                        html += '<div class="linked-subheader">关联临时会话</div>';
+                        html += buildSessionRows(section.sessions, source, 'linked-item');
+                    }
+
+                    html += '</div>'; // close session-table
+                } else {
+                    // --- Other section types (unlinked_temp, broken) ---
+                    html += '<div class="session-table">';
+
+                    // Section title
+                    var secTitle = section.sectionType === 'broken' ? '残缺会话' : '其他临时会话';
+                    html += '<div class="section-header"><h3>' + secTitle + '</h3><span class="section-count">' + (section.sessions.length + section.broken.length) + ' 条</span></div>';
+
+                    // Column headers
+                    html += '<div class="session-header">'
+                        + '<div class="session-info">名称 / Session ID / 消息</div>'
+                        + '<div class="session-project">项目</div>'
+                        + '<div class="session-actions">操作</div>'
+                        + '</div>';
+
+                    // Normal sessions
+                    if (section.sessions.length > 0) {
+                        html += buildSessionRows(section.sessions, source, '');
+                    }
+
+                    // Broken sessions
+                    if (section.broken.length > 0) {
+                        html += buildBrokenRows(section.broken, source);
+                    }
+
+                    html += '</div>'; // close session-table
                 }
-
-                // Broken sessions
-                if (section.broken.length > 0) {
-                    html += buildBrokenRows(section.broken, source);
-                }
-
-                html += '</div>'; // close session-table
             }
 
             html += '</div>'; // close source-group
@@ -215,13 +225,14 @@ function attachEventListeners(container) {
 
         var source = item.getAttribute('data-source');
         var sessionId = item.getAttribute('data-id');
+        var isMain = item.getAttribute('data-main') === 'true';
 
         if (target.classList.contains('btn-view')) {
             e.preventDefault();
             viewSession(source, sessionId);
         } else if (target.classList.contains('btn-delete')) {
             e.preventDefault();
-            confirmDelete(source, sessionId);
+            confirmDelete(source, sessionId, isMain);
         }
     });
 }
@@ -248,20 +259,51 @@ async function viewSession(source, sessionId) {
 // --- Delete Confirmation ---
 var pendingDelete = null;
 
-function confirmDelete(source, sessionId) {
+function confirmDelete(source, sessionId, isMain) {
     var overlay = document.getElementById('confirm-modal');
+    var title = document.querySelector('#confirm-modal h3');
     var text = document.getElementById('confirm-text');
     var detail = document.getElementById('confirm-detail');
 
     text.textContent = sessionId;
-    detail.textContent = '来源: ' + source + '。此操作将扫描会话目录，删除所有文件名包含该会话 ID 的数据文件（.json、.jsonl、.bak、.journal.jsonl 等），不可恢复。';
+    if (isMain) {
+        title.innerHTML = '&#9888;&#65039; 警告：删除主会话';
+        title.style.color = '#b91c1c';
+        detail.textContent = '来源: ' + source + '。此会话是【主会话】，删除后其关联的临时会话将变为未分组。此操作将扫描会话目录，删除所有文件名包含该会话 ID 的数据文件（.json、.jsonl、.bak、.journal.jsonl 等），不可恢复。';
+    } else {
+        title.innerHTML = '&#9888;&#65039; 确认删除';
+        title.style.color = '#1a2634';
+        detail.textContent = '来源: ' + source + '。此操作将扫描会话目录，删除所有文件名包含该会话 ID 的数据文件（.json、.jsonl、.bak、.journal.jsonl 等），不可恢复。';
+    }
     overlay.classList.add('active');
 
-    pendingDelete = { source: source, sessionId: sessionId };
+    pendingDelete = { source: source, sessionId: sessionId, isMain: !!isMain, awaitingSecondConfirm: false };
 }
 
 async function executeDelete() {
     if (!pendingDelete) return;
+
+    // 主会话：需要二次确认
+    if (pendingDelete.isMain && !pendingDelete.awaitingSecondConfirm) {
+        pendingDelete.awaitingSecondConfirm = true;
+
+        var overlay = document.getElementById('confirm-modal');
+        var title = document.querySelector('#confirm-modal h3');
+        var text = document.getElementById('confirm-text');
+        var detail = document.getElementById('confirm-detail');
+
+        title.innerHTML = '&#128683; 再次确认删除主会话';
+        title.style.color = '#b91c1c';
+        text.textContent = pendingDelete.sessionId;
+        detail.innerHTML = '<span style="color:#b91c1c;font-weight:600;">此操作不可恢复！</span> 该会话是主会话，删除后将永久删除所有关联文件。确定要继续吗？';
+
+        var actions = document.querySelector('#confirm-modal .confirm-actions');
+        actions.innerHTML = ''
+            + '<button class="btn btn-view" onclick="cancelSecondConfirm()">返回</button>'
+            + '<button class="btn btn-delete" onclick="executeDelete()" style="background:#7f1d1d;">确认删除</button>';
+        return;
+    }
+
     var source = pendingDelete.source;
     var sessionId = pendingDelete.sessionId;
     pendingDelete = null;
@@ -276,17 +318,43 @@ async function executeDelete() {
     }
 }
 
+function cancelSecondConfirm() {
+    pendingDelete.awaitingSecondConfirm = false;
+
+    var title = document.querySelector('#confirm-modal h3');
+    title.innerHTML = '&#9888;&#65039; 警告：删除主会话';
+    title.style.color = '#b91c1c';
+    document.getElementById('confirm-detail').textContent = '来源: ' + pendingDelete.source + '。此会话是【主会话】，删除后其关联的临时会话将变为未分组。此操作将扫描会话目录，删除所有文件名包含该会话 ID 的数据文件（.json、.jsonl、.bak、.journal.jsonl 等），不可恢复。';
+
+    var actions = document.querySelector('#confirm-modal .confirm-actions');
+    actions.innerHTML = ''
+        + '<button class="btn btn-close" onclick="closeModal(\'confirm-modal\')">取消</button>'
+        + '<button class="btn btn-delete" onclick="executeDelete()">确认删除</button>';
+}
+
 // --- Modal Helpers ---
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
-    if (id === 'confirm-modal') pendingDelete = null;
+    if (id === 'confirm-modal') {
+        pendingDelete = null;
+        var actions = document.querySelector('#confirm-modal .confirm-actions');
+        if (actions) {
+            actions.innerHTML = ''
+                + '<button class="btn btn-close" onclick="closeModal(\'confirm-modal\')">取消</button>'
+                + '<button class="btn btn-delete" onclick="executeDelete()">确认删除</button>';
+        }
+        var title = document.querySelector('#confirm-modal h3');
+        if (title) {
+            title.innerHTML = '&#9888;&#65039; 确认删除';
+            title.style.color = '';
+        }
+    }
 }
 
 // Close modal on overlay click
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('modal-overlay')) {
-        e.target.classList.remove('active');
-        if (e.target.id === 'confirm-modal') pendingDelete = null;
+        closeModal(e.target.id);
     }
 });
 
@@ -295,9 +363,8 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         var modals = document.querySelectorAll('.modal-overlay.active');
         for (var i = 0; i < modals.length; i++) {
-            modals[i].classList.remove('active');
+            closeModal(modals[i].id);
         }
-        pendingDelete = null;
     }
 });
 

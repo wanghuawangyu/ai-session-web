@@ -19,12 +19,17 @@ pub fn parse_jcode(path: &Path) -> Result<SessionMeta> {
     }).unwrap_or(0);
 
     let title = data.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let name = data.get("custom_title")
-        .or_else(|| data.get("short_name"))
-        .or_else(|| data.get("name"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+    let custom_title = data.get("custom_title").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let name = if !custom_title.is_empty() {
+        custom_title.clone()
+    } else {
+        data.get("short_name")
+            .or_else(|| data.get("name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string()
+    };
+    let has_custom_title = !custom_title.is_empty();
     let created = data.get("created_at").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let json_updated = data.get("updated_at").and_then(|v| v.as_str()).unwrap_or(&created).to_string();
     let json_wd = data.get("working_dir").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -81,9 +86,6 @@ pub fn parse_jcode(path: &Path) -> Result<SessionMeta> {
         eff_candidate_files.push(&journal_path);
     }
     let effective_updated_at = super::compute_effective_updated_at(&updated_at, &eff_candidate_files);
-
-    // --- has_custom_title（主会话 vs 临时会话）---
-    let has_custom_title = !name.is_empty();
 
     Ok(SessionMeta {
         source: SessionSource::Jcode,

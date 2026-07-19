@@ -268,6 +268,38 @@ body {
     opacity: 1;
 }
 
+/* Main group: leader row */
+.main-group-table {
+    border-bottom: 1px solid #e2e8f0;
+}
+.main-group-leader {
+    background: #f0f4ff !important;
+    border-bottom: 2px solid #4a6cf7 !important;
+    font-weight: 600;
+}
+.main-group-leader .session-name {
+    color: #1e40af;
+}
+
+/* Linked temp items (indented) */
+.linked-item {
+    padding-left: 40px !important;
+    background: #fafbfc;
+}
+.linked-item:hover {
+    background: #f1f5f9 !important;
+}
+.linked-subheader {
+    padding: 6px 20px 6px 40px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .session-item { flex-direction: column; align-items: stretch; }

@@ -62,8 +62,8 @@ pub struct BrokenEntry {
 pub struct SessionSection {
     pub section_type: String,
     pub title: String,
-    pub parent_session_id: Option<String>,
-    pub parent_session_name: Option<String>,
+    /// main_group 类型时，主会话的数据在此，不在 sessions 中
+    pub main_session: Option<SessionEntry>,
     pub sessions: Vec<SessionEntry>,
     pub broken: Vec<BrokenEntry>,
 }
@@ -175,7 +175,7 @@ impl SessionRegistry {
     // 排序输出（核心逻辑）
     // ============================================================
 
-    /// 获取排序后的分组列表，按 --cli-dirs 顺序、主会话→关联临时→其他临时→残缺
+    /// 获取排序后的分组列表，按 --cli-dirs 顺序、每个主会话后紧跟其关联临时会话
     pub fn sorted_list(&self) -> Vec<SortedSessionGroup> {
         let mut groups: Vec<SortedSessionGroup> = Vec::new();
 
@@ -220,87 +220,74 @@ impl SessionRegistry {
             let mut sorted_main = main_sessions.clone();
             sorted_main.sort_by(sort_desc);
 
-            let mut sorted_linked = linked_temps.clone();
-            sorted_linked.sort_by(sort_desc);
+            // 为每个主会话创建其关联临时列表（也按时间降序）
+            let mut main_links: Vec<(&SessionMeta, Vec<&SessionMeta>)> = Vec::new();
+            let mut accounted_linked: HashSet<String> = HashSet::new();
 
+            for main_s in &sorted_main {
+                let mut links: Vec<&SessionMeta> = linked_temps.iter()
+                    .filter(|s| s.working_dir == main_s.working_dir)
+                    .cloned()
+                    .collect();
+                links.sort_by(sort_desc);
+                for l in &links {
+                    accounted_linked.insert(l.session_id.clone());
+                }
+                main_links.push((*main_s, links));
+            }
+
+            // 剩余的关联临时（主会话的 working_dir 被清空等边界情况）
+            let remaining_linked: Vec<&SessionMeta> = linked_temps.iter()
+                .filter(|s| !accounted_linked.contains(&s.session_id))
+                .cloned()
+                .collect();
+
+            // 其他临时排序
             let mut sorted_unlinked = unlinked_temps.clone();
             sorted_unlinked.sort_by(sort_desc);
 
-            // --- 构建 sections ---
+            // --- 构建 sections（交错：主→其关联→下一个主→其关联→...）---
             let mut sections: Vec<SessionSection> = Vec::new();
 
-            // 1. 主会话
-            if !sorted_main.is_empty() {
+            for (main_s, links) in &main_links {
                 sections.push(SessionSection {
-                    section_type: "main".to_string(),
-                    title: "主会话".to_string(),
-                    parent_session_id: None,
-                    parent_session_name: None,
-                    sessions: sorted_main.iter().map(|s| SessionEntry::from(*s)).collect(),
+                    section_type: "main_group".to_string(),
+                    title: if main_s.name.is_empty() { main_s.session_id.clone() } else { main_s.name.clone() },
+                    main_session: Some(SessionEntry::from(*main_s)),
+                    sessions: links.iter().map(|s| SessionEntry::from(*s)).collect(),
                     broken: Vec::new(),
                 });
             }
 
-            // 2. 关联临时（按父会话分组）
-            if !sorted_linked.is_empty() {
-                // 找出匹配的主会话
-                for main_s in &sorted_main {
-                    let linked: Vec<&SessionMeta> = sorted_linked.iter()
-                        .filter(|s| s.working_dir == main_s.working_dir)
-                        .cloned()
-                        .collect();
-                    if !linked.is_empty() {
-                        sections.push(SessionSection {
-                            section_type: "linked_temp".to_string(),
-                            title: format!("临时会话（关联 {}）", main_s.name),
-                            parent_session_id: Some(main_s.session_id.clone()),
-                            parent_session_name: Some(if main_s.name.is_empty() { main_s.session_id.clone() } else { main_s.name.clone() }),
-                            sessions: linked.iter().map(|s| SessionEntry::from(*s)).collect(),
-                            broken: Vec::new(),
-                        });
-                    }
-                }
-                // 如果有 linked temp 但匹配不到 main（边界情况），放在最后
-                let accounted: HashSet<String> = sections.iter()
-                    .filter(|s| s.section_type == "linked_temp")
-                    .flat_map(|s| s.sessions.iter().map(|e| e.session_id.clone()))
-                    .collect();
-                let remaining: Vec<&SessionMeta> = sorted_linked.iter()
-                    .filter(|s| !accounted.contains(&s.session_id))
-                    .cloned()
-                    .collect();
-                if !remaining.is_empty() {
-                    sections.push(SessionSection {
-                        section_type: "unlinked_temp".to_string(),
-                        title: "临时会话（关联-未匹配）".to_string(),
-                        parent_session_id: None,
-                        parent_session_name: None,
-                        sessions: remaining.iter().map(|s| SessionEntry::from(*s)).collect(),
-                        broken: Vec::new(),
-                    });
-                }
+            // 剩余的关联临时
+            if !remaining_linked.is_empty() {
+                sections.push(SessionSection {
+                    section_type: "unlinked_temp".to_string(),
+                    title: "临时会话（关联-未匹配）".to_string(),
+                    main_session: None,
+                    sessions: remaining_linked.iter().map(|s| SessionEntry::from(*s)).collect(),
+                    broken: Vec::new(),
+                });
             }
 
-            // 3. 其他临时
+            // 其他临时
             if !sorted_unlinked.is_empty() {
                 sections.push(SessionSection {
                     section_type: "unlinked_temp".to_string(),
                     title: "其他临时会话".to_string(),
-                    parent_session_id: None,
-                    parent_session_name: None,
+                    main_session: None,
                     sessions: sorted_unlinked.iter().map(|s| SessionEntry::from(*s)).collect(),
                     broken: Vec::new(),
                 });
             }
 
-            // 4. 残缺会话
+            // 残缺会话
             let broken = self.detect_broken(source, &cli_dir.path);
             if !broken.is_empty() {
                 sections.push(SessionSection {
                     section_type: "broken".to_string(),
                     title: "残缺会话".to_string(),
-                    parent_session_id: None,
-                    parent_session_name: None,
+                    main_session: None,
                     sessions: Vec::new(),
                     broken,
                 });
@@ -564,29 +551,20 @@ mod tests {
         assert_eq!(sorted[0].source, "jcode");
 
         let sections = &sorted[0].sections;
-        // Should have: main, linked_temp, unlinked_temp
-        // (since linked matches main's wd)
-        assert!(sections.len() >= 2, "Expected at least 2 sections, got {}", sections.len());
+        // Should have: main_group (main + linked), unlinked_temp
+        assert_eq!(sections.len(), 2, "Expected 2 sections, got {}", sections.len());
 
-        // First section should be main
-        assert_eq!(sections[0].section_type, "main");
-        assert_eq!(sections[0].sessions.len(), 1);
-        assert_eq!(sections[0].sessions[0].session_id, "main_sess");
+        // First section should be main_group with main_session and 1 linked temp
+        assert_eq!(sections[0].section_type, "main_group");
+        assert!(sections[0].main_session.is_some());
+        assert_eq!(sections[0].main_session.as_ref().unwrap().session_id, "main_sess");
+        assert_eq!(sections[0].sessions.len(), 1, "Expected 1 linked in section");
+        assert_eq!(sections[0].sessions[0].session_id, "temp_linked");
 
-        // Linked temp section
-        let linked = sections.iter().find(|s| s.section_type == "linked_temp");
-        assert!(linked.is_some(), "Expected linked_temp section");
-        if let Some(l) = linked {
-            assert_eq!(l.sessions.len(), 1);
-            assert_eq!(l.sessions[0].session_id, "temp_linked");
-        }
-
-        // Unlinked temp section (temp_other has different wd)
-        let unlinked = sections.iter().find(|s| s.section_type == "unlinked_temp");
-        assert!(unlinked.is_some(), "Expected unlinked_temp section");
-        if let Some(u) = unlinked {
-            assert_eq!(u.sessions[0].session_id, "temp_other");
-        }
+        // Second section: unlinked_temp
+        assert_eq!(sections[1].section_type, "unlinked_temp");
+        assert_eq!(sections[1].sessions.len(), 1);
+        assert_eq!(sections[1].sessions[0].session_id, "temp_other");
 
         let _ = std::fs::remove_dir_all(&base);
     }
