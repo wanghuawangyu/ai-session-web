@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'   # 推送 v 开头的 tag 时触发
+
+permissions:
+  contents: write    # 允许写入 Release 资源
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: taiki-e/create-gh-release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64 (musl 静态链接)
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          # Linux ARM64 (musl 静态链接，在 x86_64 上交叉编译)
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+          # Windows x86_64 (gnu)
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # Linux x86_64 musl: musl-tools 提供本地 musl-gcc
+      - name: Install system deps — Linux x86_64 musl
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      # Linux ARM64 musl: 下载 musl.cc 交叉编译工具链
+      - name: Install system deps — Linux ARM64 musl
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          curl -sL https://musl.cc/aarch64-linux-musl-cross.tgz | sudo tar xz -C /opt
+          echo "/opt/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          # ARM64 musl 交叉编译需要指定链接器
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
+          CC_aarch64_unknown_linux_musl: aarch64-linux-musl-gcc
+
+      - name: Upload to Release
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: ai-session-web
+          target: ${{ matrix.target }}
+          tar: all
+          zip: windows
+          token: ${{ secrets.GITHUB_TOKEN }}
